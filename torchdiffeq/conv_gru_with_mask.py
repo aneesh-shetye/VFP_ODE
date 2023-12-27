@@ -37,6 +37,7 @@ parser.add_argument('--digit_size', type=int, default=28)
 parser.add_argument('--step_length', type=float, default=0.5)
 parser.add_argument('--nframes', type=int, default=32)
 parser.add_argument('--training', type=bool, default=True)
+parser.add_argument('--val', type=bool, default=False)
 
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--workers', type=int, default=0)
@@ -87,6 +88,7 @@ def main():
 	args.train = True
 
 	mmnist_train = build(training=True, args=args)
+	mmnist_val = build(training=False, args=args)
 
 	func = Model(inchannels=3)#.to(args.rank)
 
@@ -101,6 +103,10 @@ def main():
 
 	train_loader = torch.utils.data.DataLoader(
 			dataset=mmnist_train, batch_size=args.batch_size, num_workers=args.workers,
+			pin_memory=True,  collate_fn = MyCollate(nframes=args.nframes, frame_size=args.frame_size))
+
+	val_loader = torch.utils.data.DataLoader(
+			dataset=mmnist_val, batch_size=args.batch_size, num_workers=args.workers,
 			pin_memory=True,  collate_fn = MyCollate(nframes=args.nframes, frame_size=args.frame_size))
 
 	epochs = args.epochs
@@ -169,6 +175,61 @@ def main():
 			epoch_loss +=loss
 
 		epoch_loss = epoch_loss.div_(len(train_loader))
+
+
+		if args.val == True: 
+			
+			with torch.no_grad(): 
+
+				val_loss = 0 
+
+				for n, i in enumerate(val_loader):
+
+					inp = i[:, 0, :, :]#.cuda(gpu, non_blocking=True) #batch_size, time(=1), frame_size, frame_size
+
+					t  = torch.linspace(0, 1, i.shape[1]-1)#[:8]
+
+					trg = i[:, 1:, :, :]#.cuda(gpu, non_blocking=True) #batch, time, frame_size, frame_size
+
+					h_curr = torch.zeros(i[:, 0, :, :].unsqueeze(1).shape).repeat(1,3,1,1)#.cuda(gpu, non_blocking=True)
+					pred = torch.ones(i.shape)[:, 0, :, :].unsqueeze(1)#.cuda(gpu, non_blocking=True)
+            # pred = i[:, 0, :, :].unsqueeze(1)
+
+					img_diff_seq = torch.zeros(i.shape)[:, 0, :, :].unsqueeze(1)#.cuda(gpu, non_blocking=True)
+
+					for time in range(i.shape[1]-1): 
+		
+						inp = i[:,time, :, : ].unsqueeze(1)
+						mean = torch.mean(inp, dim=(-1, -2)).unsqueeze(-1)
+						mean = mean.unsqueeze(-1).repeat(1,1,inp.shape[2],inp.shape[3])
+						inp = inp-mean
+		
+						h_next = odeint(func, h_curr, t).to(device)[-1, :, :, :] #pred.shape = time, batch_size, frame_size, frame_size
+						out, h_next = conv_enc(inp, h_next)
+						of, img_diff, out = conv_dec(h_next, inp)
+						h_curr = h_next 
+						pred = pred + mean
+						pred = torch.cat((pred,out), dim=1) 
+						img_diff_seq = torch.cat((img_diff_seq, img_diff), dim=1)
+		
+					pred = pred[:, :-1, :, :]
+					img_diff_seq = img_diff_seq[:, 1:, :, :]
+
+					loss = torch.mean(torch.abs(pred-trg))
+
+					id_trg = i[:, :-1, :, :] - trg
+					loss_id = torch.mean(torch.abs(img_diff_seq - id_trg)) 
+					loss = loss + loss_id
+		            # wandb.log({"iter_loss": loss})
+					print(loss)        
+
+
+					val_loss +=loss
+
+				val_loss = val_loss.div_(len(val_loader))
+
+					
+
         # wandb.log({"epoch_loss": epoch_loss})
 
         # wandb.log({"pred_vid": wandb.Video(pred[1,:,:,:].unsqueeze(1).repeat(1,3,1,1).detach().numpy(), fps=2)})
