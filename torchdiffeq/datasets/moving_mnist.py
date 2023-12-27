@@ -24,7 +24,7 @@ class MovingDigits:
                  step_length:float, 
                  nframes: int, 
                  path=None, 
-				 size_dataset:int=200, 
+		 size_dataset:int=200, 
                  training: bool=True):
             
             self.path = path
@@ -103,16 +103,22 @@ class MovingDigits:
        return self.size_dataset
          
 def build(training: bool, args): 
+
+	if args.training: 
+		size_dataset = 1000
+	else: 
+		size_dataset = 200
     
-    
-    #load dataset: 
-    dataset = MovingDigits(frame_size=args.frame_size, 
+    #load dataset:
+	
+	dataset = MovingDigits(frame_size=args.frame_size, 
+			   size_dataset = size_dataset, 
                            digit_size=args.digit_size, 
                            step_length=args.step_length, 
                            nframes=args.nframes, 
                            training = training)            
 
-    return dataset
+    	return dataset
                 
 
 class MyCollate: 
