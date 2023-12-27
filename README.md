@@ -5,6 +5,21 @@ Project for Image and Video Processing class at NYU Tandon.
 
 ## To set up the environment for the project: 
 
+1. Create a conda environment:
+```
+conda create --name ivp 
+```
+
+2. Activate the environment: 
+```
+conda activate ivp
+```
+
+3. Install the dependancies:
+```
+pip install -r torchdiffeq/requirements.txt
+```
+
 
 ## To run the code: 
 
@@ -33,5 +48,9 @@ python conv_gru.py
 ```
 python conv_gru_with_mask.py --val=True
 ```
+
+## List of arguments: 
+
+
 
 
