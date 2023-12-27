@@ -29,3 +29,9 @@ sbatch convtrain.sbatch
 python conv_gru.py
 ```
 
+4. To validate the model, set the `--val` argument to `True ` :
+```
+python conv_gru_with_mask.py --val=True
+```
+
+
