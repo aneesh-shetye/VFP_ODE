@@ -49,8 +49,6 @@ python conv_gru.py
 python conv_gru_with_mask.py --val=True
 ```
 
-## List of arguments: 
-
 
 
 
